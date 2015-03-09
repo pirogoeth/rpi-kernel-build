@@ -1,0 +1,42 @@
+#!/bin/bash -x
+
+export DEBIAN_FRONTEND=noninteractive
+export AUFS_ENABLE=${AUFS_ENABLE:-"YES"}
+
+# Make app directories, pull fluentd-ui, and set up.
+( [[ ! -d /config ]] && mkdir /config )
+( [[ ! -d /data ]] && mkdir /data )
+( [[ ! -d /kern ]] && mkdir /kern )
+
+# Copy build script to the /data directory
+( [[ ! -f /data/build.sh ]] && \
+  install -m 0755 -o root -g root -T /build/build.sh /data/build.sh )
+
+# Pull the git repositories
+git clone git://aufs.git.sourceforge.net/gitroot/aufs/aufs3-standalone.git /data/aufs
+( cd /data/aufs && git checkout origin/aufs3.18 ) # Switch branches to match kernel version.
+git clone https://github.com/raspberrypi/firmware.git /data/rpi-firmware
+git clone https://github.com/raspberrypi/linux.git /data/rpi-linux
+
+# Copy aufs files in to place.
+cp -rvp /data/aufs/fs /data/rpi-linux/
+cp -rvp /data/aufs/Documentation/ /data/rpi-linux/
+cp -rvp /data/aufs/include/uapi/linux/aufs_type.h /data/rpi-linux/include/uapi/linux/aufs_type.h
+
+# Add aufs_type.h to the uapi/linux/Kbuild file.
+echo "header-y += aufs_type.h" >> /data/rpi-linux/include/uapi/linux/Kbuild
+
+# Patch the kernel with the aufs code.
+( cd /data/rpi-linux && \
+  patch -p1 < /data/aufs/aufs3-base.patch && \
+  patch -p1 < /data/aufs/aufs3-kbuild.patch && \
+  patch -p1 < /data/aufs/aufs3-mmap.patch && \
+  patch -p1 < /data/aufs/aufs3-standalone.patch && \
+  patch -p1 < /data/aufs/tmpfs-idr.patch && \
+  patch -p1 < /data/aufs/vfs-ino.patch )
+
+# Load the config, if present.
+( [[ -d /config ]] && [[ -f /config/rpi-config ]] && \
+  cd /data/rpi-linux && \
+  cp /config/rpi-config .config ) || \
+  echo " [-] No /config volume or no rpi-config in /config"

@@ -1,0 +1,9 @@
+#!/bin/bash -ex
+
+# Set apt/dpkg to not be interactive
+export DEBIAN_FRONTEND=noninteractive
+
+# Update the base system
+apt-get update
+apt-get dist-upgrade --no-install-recommends -y
+

@@ -1,0 +1,10 @@
+#!/bin/bash -ex
+
+# Clean up unused apt packages.
+apt-get autoremove -y
+
+# Clean up apt archives.
+apt-get clean
+
+# Check for broken dependencies.
+apt-get check -y 
