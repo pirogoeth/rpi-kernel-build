@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # This is the actual build script that runs as the entrypoint for the
 # container.  This will actually build the kernel and such,
@@ -29,35 +29,57 @@ USE_HARDFLOAT=${USE_HARDFLOAT:-"YES"}
 # Set the cross-compiler prefix.
 # Set the cross-compiler prefix.
 if [[ "${USE_HARDFLOAT}" == "YES" ]] ; then
+  echo ' [!] Compiling with HardFP.'
   export CROSS_COMPILE="${ARMHF_CC_PFX}"
 elif [[ "${USE_HARDFLOAT}" != "YES" ]] ; then
+  echo ' [!] Compiling with SoftFP.'
   export CROSS_COMPILE="${ARMSF_CC_PFX}"
 fi
+
+# Echo out build settings.
+echo " [!] ----- Build / Install Variables ----- [!]"
+echo " [!] KERN_SOURCE   => ${KERN_SOURCE}"
+echo " [!] KERN_OUTPUT   => ${KERN_OUTPUT}"
+echo " [!] MOD_OUTPUT    => ${MOD_OUTPUT}"
+echo " [!] FW_OUTPUT     => ${FW_OUTPUT}"
+echo " [!] CROSS_COMPILE => ${CROSS_COMPILE}"
+echo " [!] ------- Environment Variables ------- [!]"
+echo " [!] AUFS_ENABLE   => ${AUFS_ENABLE}"
+echo " [!] PARALLEL_OPT  => ${PARALLEL_OPT}"
+echo " [!] USE_HARDFLOAT => ${USE_HARDFLOAT}"
 
 # Create output directories.
 ( [[ ! -d ${KERN_OUTPUT} ]] && mkdir ${KERN_OUTPUT} )
 ( [[ ! -d ${MOD_OUTPUT} ]] && mkdir ${MOD_OUTPUT} )
 ( [[ ! -d ${FW_OUTPUT} ]] && mkdir ${FW_OUTPUT} )
 
+# Load the config, if present.
+( [[ -d /config ]] && [[ -f /config/rpi-config ]] && \
+  cd /data/rpi-linux && \
+  cp /config/rpi-config .config ) || \
+  echo " [-] No /config volume or no rpi-config in /config"
+
 # Create a kernel from the bcmrpi defaults if no kernel config was provided.
 # If a kernel config was provided, tell the build system to use the "old"
 #  configuration and use bcmrpi defaults for all NEW symbols.
 ( [[ ! -f ${KERN_SOURCE}/.config ]] && \
   cd ${KERN_SOURCE} && \
+  echo " [!] Building kern. conf. with defaults from PLATFORM=bcmrpi." && \
   make ARCH=arm PLATFORM=bcmrpi CROSS_COMPILE=${CROSS_COMPILE} bcmrpi_defconfig ) ||
 ( [[ -f ${KERN_SOURCE}/.config ]] && \
   cd ${KERN_SOURCE} && \
+  echo " [!] Building rpi-config with NEW symbol defaults from PLATFORM=bcmrpi." && \
   make ARCH=arm PLATFORM=bcmrpi CROSS_COMPILE=${CROSS_COMPILE} olddefconfig )
-
-# Set aufs to load as a module (aufs3-standalone)
-( [[ "${AUFS_ENABLE}" == "YES" ]] && \
-  cd ${KERN_SOURCE} && \
-  echo "CONFIG_AUFS_FS=m" >> .config )
 
 # ALWAYS enable loadable kernel module support
 ( [[ -z `grep CONFIG_MODULES= ${KERN_SOURCE}/.config` ]] && \
   cd ${KERN_SOURCE} && \
   echo "CONFIG_MODULES=y" >> .config )
+
+# Set aufs to load as a module (aufs3-standalone)
+( [[ "${AUFS_ENABLE}" == "YES" ]] && \
+  cd ${KERN_SOURCE} && \
+  echo "CONFIG_AUFS_FS=m" >> .config )
 
 # Cross-compile kernel.
 ( cd ${KERN_SOURCE} && \

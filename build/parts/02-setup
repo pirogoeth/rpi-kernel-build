@@ -14,7 +14,7 @@ export AUFS_ENABLE=${AUFS_ENABLE:-"YES"}
 
 # Pull the git repositories
 git clone git://aufs.git.sourceforge.net/gitroot/aufs/aufs3-standalone.git /data/aufs
-( cd /data/aufs && git checkout origin/aufs3.18 ) # Switch branches to match kernel version.
+( cd /data/aufs && git checkout origin/aufs3.18.1+ ) # Switch branches to match kernel version.
 git clone https://github.com/raspberrypi/firmware.git /data/rpi-firmware
 git clone https://github.com/raspberrypi/linux.git /data/rpi-linux
 
@@ -30,13 +30,8 @@ echo "header-y += aufs_type.h" >> /data/rpi-linux/include/uapi/linux/Kbuild
 ( cd /data/rpi-linux && \
   patch -p1 < /data/aufs/aufs3-base.patch && \
   patch -p1 < /data/aufs/aufs3-kbuild.patch && \
+  patch -p1 < /data/aufs/aufs3-loopback.patch && \
   patch -p1 < /data/aufs/aufs3-mmap.patch && \
   patch -p1 < /data/aufs/aufs3-standalone.patch && \
   patch -p1 < /data/aufs/tmpfs-idr.patch && \
   patch -p1 < /data/aufs/vfs-ino.patch )
-
-# Load the config, if present.
-( [[ -d /config ]] && [[ -f /config/rpi-config ]] && \
-  cd /data/rpi-linux && \
-  cp /config/rpi-config .config ) || \
-  echo " [-] No /config volume or no rpi-config in /config"
