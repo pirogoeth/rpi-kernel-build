@@ -13,7 +13,7 @@ You can pass some environment variables in to the container when you run it:
     - Default: **YES**
   - PARALLEL_OPT => Specify how many jobs / recipes Make should execute at once.
     - Default: **3**
-  - USE_HARDFLOAT => Tells the build system whether or not to compile with gnueabihf or juse gnueabi.
+  - USE_HARDFLOAT => Tells the build system whether or not to compile with gnueabihf or just use gnueabi.
     - Default: **YES**
 
 This is still a work in progress, but it's making its way to a workable, usable state.  Some things
