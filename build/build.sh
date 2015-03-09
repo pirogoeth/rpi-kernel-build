@@ -102,6 +102,11 @@ echo " [+] UPDATE_EXISTING  => ${UPDATE_EXISTING}"
 echo " [+] USE_EXISTING_SRC => ${USE_EXISTING_SRC}"
 echo " [+] USE_HARDFLOAT    => ${USE_HARDFLOAT}"
 
+( ( [[ ! -d ${AUFS_SOURCE} ]] || [[ ! -d ${FW_SOURCE} ]] || [[ ! -d ${KERN_SOURCE ]] ) && \
+  [[ "${USE_EXISTING_SRC}" != "NO" ]] ) && \
+    echo " [-] Some or all source trees are missing, setting USE_EXISTING_SRC=NO." && \
+    export USE_EXISTING_SRC="NO"
+
 # Determine what to do with source directories.
 if [[ "${USE_EXISTING_SRC}" == "NO" ]] ; then
   echo " [!] Cloning source...grab some popcorn because this will take a bit..."
@@ -206,8 +211,8 @@ done
   make ARCH=arm PLATFORM=bcmrpi modules_install INSTALL_MOD_PATH=${MOD_OUTPUT} )
 
 # Copy new firmware.
-( cd /data/rpi-firmware && \
-  cp /data/rpi-firmware/boot/*.dtb ${FW_OUTPUT} && \
-  cp /data/rpi-firmware/boot/*.elf ${FW_OUTPUT} && \
-  cp /data/rpi-firmware/boot/*.dat ${FW_OUTPUT} && \
-  cp /data/rpi-firmware/boot/bootcode.bin ${FW_OUTPUT} )
+( cd ${FW_SOURCE} && \
+  cp ${FW_SOURCE}/boot/*.dtb ${FW_OUTPUT} && \
+  cp ${FW_SOURCE}/boot/*.elf ${FW_OUTPUT} && \
+  cp ${FW_SOURCE}/boot/*.dat ${FW_OUTPUT} && \
+  cp ${FW_SOURCE}/boot/bootcode.bin ${FW_OUTPUT} )
