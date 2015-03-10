@@ -157,18 +157,22 @@ fi
 
 # Copy AUFS files into place.
 for (( i=0 ; $i < ${#AUFS_KERN_CPY[@]}; i++ )) ; do
-  srcpath="${AUFS_SOURCE}$(arr_get_source AUFS_KERN_CPY[@] $i)"
-  destpath="${KERN_SOURCE}$(arr_get_dest AUFS_KERN_CPY[@] $i)"
-  echo " [*] Copying ${srcpath} to ${destpath}.."
-  cp -rp ${srcpath} ${destpath}
+  SRCPATH="${AUFS_SOURCE}$(arr_get_source AUFS_KERN_CPY[@] $i)"
+  DESTPATH="${KERN_SOURCE}$(arr_get_dest AUFS_KERN_CPY[@] $i)"
+  echo " [*] Copying ${SRCPATH} to ${DESTPATH}.."
+  cp -rp ${SRCPATH} ${DESTPATH}
 done
 
 # Perform simple append patches. (eg., for Kbuild header things)
 for (( i=0 ; $i < ${#FILE_APPEND_PATCH[@]}; i++ )) ; do
-  patchdata="`arr_get_source FILE_APPEND_PATCH[@] $i`"
-  patchfile="`arr_get_dest FILE_APPEND_PATCH[@] $i`"
-  echo " [*] Appending '${patchdata}' to ${patchfile}.."
-  echo ${patchdata} >> ${patchfile}
+  PATCHDATA="`arr_get_source FILE_APPEND_PATCH[@] $i`"
+  PATCHFILE="`arr_get_dest FILE_APPEND_PATCH[@] $i`"
+  if [[ -z `grep ${PATCHDATA} ${PATCHFILE}` ]] ; then
+    echo " [*] Appending '${PATCHDATA}' to ${PATCHFILE}.."
+    echo ${PATCHDATA} >> ${PATCHFILE}
+  else
+    echo " [*] ${PATCHFILE} already contains '${PATCHDATA}', not appending."
+  fi
 done
 
 # Perform AUFS patches in the kernel directory.
@@ -209,7 +213,7 @@ done
   echo "CONFIG_MODULES=y" >> .config )
 
 # Set aufs to load as a module (aufs3-standalone)
-( [[ "${AUFS_ENABLE}" == "YES" ]] && \
+( [[ "${AUFS_ENABLE}" == "YES" ]] && [[ -z `grep CONFIG_AUFS_FS= ${KERN_SOURCE}/.config` ]] && \
   cd ${KERN_SOURCE} && \
   echo "CONFIG_AUFS_FS=m" >> .config )
 
