@@ -12,6 +12,6 @@ apt-get install -y gcc-4.7-arm-linux-gnueabi
 
 # Link gcc-4.7 to gcc, if it's not already done
 ( [[ ! -L /usr/bin/arm-linux-gnueabihf-gcc ]] && \
-    ( ln -s /usr/bin/arm-linux-gnueabihf-gcc-4.7 /usr/bin/arm-linux-gnueabihf-gcc ) ) ||
+    ( ln -s /usr/bin/arm-linux-gnueabihf-gcc-4.7 /usr/bin/arm-linux-gnueabihf-gcc ) )
 ( [[ ! -L /usr/bin/arm-linux-gnueabi-gcc ]] && \
     ( ln -s /usr/bin/arm-linux-gnueabi-gcc-4.7 /usr/bin/arm-linux-gnueabi-gcc ) )

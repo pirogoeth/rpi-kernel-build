@@ -30,13 +30,14 @@ function arr_get_dest() {
 
 # Repositories for aufs, firmware, and kernel.
 AUFS_GIT="git://aufs.git.sourceforge.net/gitroot/aufs/aufs3-standalone.git"
-AUFS_BRANCH="3.18.1+"
+AUFS_BRANCH="aufs3.18.1+"
 
 RPI_FW_GIT="https://github.com/raspberrypi/firmware.git"
 RPI_FW_BRANCH="master"
+RPI_FW_SUBDIR="/boot"
 
 RPI_KERN_GIT="https://github.com/raspberrypi/linux.git"
-RPI_KERN_BRANCH="master"
+RPI_KERN_BRANCH="rpi-3.18.y"
 
 # Directories.
 AUFS_SOURCE="/data/aufs"
@@ -63,7 +64,7 @@ USE_HARDFLOAT=${USE_HARDFLOAT:-"YES"}
 declare -a AUFS_PATCHES=( "aufs3-base.patch" "aufs3-kbuild.patch" "aufs3-loopback.patch" "aufs3-mmap.patch" \
                "aufs3-standalone.patch" "tmpfs-idr.patch" "vfs-ino.patch" )
 
-declare -a AUFS_KERN_CPY=( "/fs,/" "/Documentation,/" "/include/uapi/linux/aufs_type.h,/include/uapi/linux/aufs_type.h" )
+declare -a AUFS_KERN_CPY=( "/fs,/" "/Documentation,/" "/include/uapi/linux/aufs_type.h,/include/uapi/linux/" )
 
 declare -a FILE_APPEND_PATCH=( "header-y += aufs_type.h,${KERN_SOURCE}/include/uapi/linux/Kbuild" )
 
@@ -83,6 +84,7 @@ echo " [+] AUFS_GIT         => ${AUFS_GIT}"
 echo " [+] AUFS_BRANCH      => ${AUFS_BRANCH}"
 echo " [+] RPI_FW_GIT       => ${RPI_FW_GIT}"
 echo " [+] RPI_FW_BRANCH    => ${RPI_FW_BRANCH}"
+echo " [+] RPI_FW_SUBDIR    => ${RPI_FW_SUBDIR}"
 echo " [+] RPI_KERN_GIT     => ${RPI_KERN_GIT}"
 echo " [+] RPI_KERN_BRANCH  => ${RPI_KERN_BRANCH}"
 echo " [!] ------------------- Source Directories -------------------- [!]"
@@ -90,7 +92,6 @@ echo " [+] AUFS_SOURCE      => ${AUFS_SOURCE}"
 echo " [+] FW_SOURCE        => ${FW_SOURCE}"
 echo " [+] KERN_SOURCE      => ${KERN_SOURCE}"
 echo " [!] ---------------- Build / Install Variables ---------------- [!]"
-echo " [+] KERN_SOURCE      => ${KERN_SOURCE}"
 echo " [+] KERN_OUTPUT      => ${KERN_OUTPUT}"
 echo " [+] MOD_OUTPUT       => ${MOD_OUTPUT}"
 echo " [+] FW_OUTPUT        => ${FW_OUTPUT}"
@@ -102,40 +103,54 @@ echo " [+] UPDATE_EXISTING  => ${UPDATE_EXISTING}"
 echo " [+] USE_EXISTING_SRC => ${USE_EXISTING_SRC}"
 echo " [+] USE_HARDFLOAT    => ${USE_HARDFLOAT}"
 
-( ( [[ ! -d ${AUFS_SOURCE} ]] || [[ ! -d ${FW_SOURCE} ]] || [[ ! -d ${KERN_SOURCE ]] ) && \
+# Check the availability of sources and if USE_EXISTING_SRC is
+# set so we can override if one of the sources are not available.
+( ( [[ ! -d ${AUFS_SOURCE} ]] || [[ ! -d ${FW_SOURCE} ]] || [[ ! -d ${KERN_SOURCE} ]] ) && \
   [[ "${USE_EXISTING_SRC}" != "NO" ]] ) && \
     echo " [-] Some or all source trees are missing, setting USE_EXISTING_SRC=NO." && \
     export USE_EXISTING_SRC="NO"
 
 # Determine what to do with source directories.
 if [[ "${USE_EXISTING_SRC}" == "NO" ]] ; then
-  echo " [!] Cloning source...grab some popcorn because this will take a bit..."
+  echo " [!] Cloning source, grab some popcorn because this will take a bit..."
+  # Pull AUFS
   ( [[ -d ${AUFS_SOURCE} ]] && \
-    rm -rf ${AUFS_SOURCE} && \
-    echo " [*] Cloning AUFS source from ${AUFS_GIT}..." && \
-    git clone --branch ${AUFS_BRANCH} ${AUFS_GIT} ${AUFS_SOURCE} )
+    rm -rf ${AUFS_SOURCE} && mkdir ${AUFS_SOURCE} ) || mkdir ${AUFS_SOURCE}
+  echo " [*] Cloning AUFS source from ${AUFS_GIT}..."
+  git clone --branch ${AUFS_BRANCH} ${AUFS_GIT} ${AUFS_SOURCE}
+  # Sparse-clone the /boot subdir of raspberrypi/firmware
   ( [[ -d ${FW_SOURCE} ]] && \
-    rm -rf ${FW_SOURCE} && \
-    echo " [*] Cloning RPI Firmware from ${RPI_FW_GIT}..." && \
-    git clone --branch ${RPI_FW_BRANCH} ${RPI_FW_GIT} ${FW_SOURCE} )
+    rm -rf ${FW_SOURCE} && mkdir ${FW_SOURCE} ) || mkdir ${FW_SOURCE}
+  echo " [*] Sparse-cloning RPI firmware from ${RPI_FW_GIT}..."
+  ( cd ${FW_SOURCE} && \
+    git init && \
+    git config core.sparsecheckout true && \
+    echo ${RPI_FW_SUBDIR} >> .git/info/sparse-checkout && \
+    git remote add -f origin ${RPI_FW_GIT} && \
+    git pull origin ${RPI_FW_BRANCH} )
+  # Pull the kernel source
   ( [[ -d ${KERN_SOURCE} ]] && \
-    rm -rf ${KERN_SOURCE} && \
-    echo " [*] Cloning RPI Linux Kernel source from ${RPI_KERN_GIT}..." && \
-    git clone --branch ${RPI_KERN_BRANCH} ${RPI_KERN_GIT} ${KERN_SOURCE} )
+    rm -rf ${KERN_SOURCE} && mkdir ${KERN_SOURCE} ) || mkdir ${KERN_SOURCE}
+  echo " [*] Cloning RPI Linux kernel source from ${RPI_KERN_GIT}..."
+  git clone --branch ${RPI_KERN_BRANCH} ${RPI_KERN_GIT} ${KERN_SOURCE}
+
 elif [[ "${USE_EXISTING_SRC}" != "NO" ]] && [[ "${UPDATE_EXISTING}" != "NO" ]] ; then
+  # Update AUFS source
   ( [[ -d ${AUFS_SOURCE} ]] && \
     cd ${AUFS_SOURCE} && \
     echo " [*] Attempting to update AUFS sources..."
     git pull origin && \
     git checkout origin/${AUFS_BRANCH} )
+  # Update rpi firmware
   ( [[ -d ${FW_SOURCE} ]] && \
     cd ${FW_SOURCE} && \
     echo " [*] Attempting to update RPI firmware..."
-    git pull origin && \
+    git pull origin ${RPI_FW_BRANCH} && \
     git checkout origin/${RPI_FW_BRANCH} )
+  # Update kernel source
   ( [[ -d ${KERN_SOURCE} ]] && \
     cd ${KERN_SOURCE} && \
-    echo " [*] Attempting to update RPI Linux Kernel sources..."
+    echo " [*] Attempting to update RPI Linux kernel sources..."
     git pull origin && \
     git checkout origin/${RPI_KERN_BRANCH} )
 fi
@@ -157,13 +172,13 @@ for (( i=0 ; $i < ${#FILE_APPEND_PATCH[@]}; i++ )) ; do
 done
 
 # Perform AUFS patches in the kernel directory.
-( cd ${KERN_SOURCE} && \
-  for (( i=0; $i < ${#AUFS_PATCHES[@]}; i++ )) ; do \
-    patchpath="${AUFS_SOURCE}/${AUFS_PATCHES[$i]}" && \
-    echo " [*] Applying patch '${patchpath}' to kernel source tree." && \
-    patch -p1 < ${patchpath}
-  done
-)
+for (( i=0; $i < ${#AUFS_PATCHES[@]}; i++ )) ; do
+  export PATCHPATH=${AUFS_SOURCE}/${AUFS_PATCHES[$i]}
+  ( cd ${KERN_SOURCE} && \
+    echo " [*] Applying patch '${PATCHPATH}' to kernel source tree." && \
+    patch -p1 < ${PATCHPATH} )
+  unset PATCHPATH
+done
 
 # Create output directories.
 ( [[ ! -d ${KERN_OUTPUT} ]] && mkdir ${KERN_OUTPUT} )
@@ -211,8 +226,10 @@ done
   make ARCH=arm PLATFORM=bcmrpi modules_install INSTALL_MOD_PATH=${MOD_OUTPUT} )
 
 # Copy new firmware.
-( cd ${FW_SOURCE} && \
-  cp ${FW_SOURCE}/boot/*.dtb ${FW_OUTPUT} && \
-  cp ${FW_SOURCE}/boot/*.elf ${FW_OUTPUT} && \
-  cp ${FW_SOURCE}/boot/*.dat ${FW_OUTPUT} && \
-  cp ${FW_SOURCE}/boot/bootcode.bin ${FW_OUTPUT} )
+( cp ${FW_SOURCE}${RPI_FW_SUBDIR}/*.dtb ${FW_OUTPUT} && \
+  cp ${FW_SOURCE}${RPI_FW_SUBDIR}/*.elf ${FW_OUTPUT} && \
+  cp ${FW_SOURCE}${RPI_FW_SUBDIR}/*.dat ${FW_OUTPUT} && \
+  cp ${FW_SOURCE}${RPI_FW_SUBDIR}/bootcode.bin ${FW_OUTPUT} )
+
+# Expose the config that was used to build the kernel.
+( cp ${KERN_SOURCE}/.config ${KERN_OUTPUT}/rpi-config )
