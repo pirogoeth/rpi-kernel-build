@@ -167,7 +167,7 @@ done
 for (( i=0 ; $i < ${#FILE_APPEND_PATCH[@]}; i++ )) ; do
   PATCHDATA="`arr_get_source FILE_APPEND_PATCH[@] $i`"
   PATCHFILE="`arr_get_dest FILE_APPEND_PATCH[@] $i`"
-  if [[ -z `grep ${PATCHDATA} ${PATCHFILE}` ]] ; then
+  if [[ -z `grep "${PATCHDATA}" ${PATCHFILE}` ]] ; then
     echo " [*] Appending '${PATCHDATA}' to ${PATCHFILE}.."
     echo ${PATCHDATA} >> ${PATCHFILE}
   else
@@ -208,12 +208,12 @@ done
   make ARCH=arm PLATFORM=bcmrpi CROSS_COMPILE=${CROSS_COMPILE} olddefconfig )
 
 # ALWAYS enable loadable kernel module support
-( [[ -z `grep CONFIG_MODULES= ${KERN_SOURCE}/.config` ]] && \
+( [[ -z `grep "CONFIG_MODULES=" ${KERN_SOURCE}/.config` ]] && \
   cd ${KERN_SOURCE} && \
   echo "CONFIG_MODULES=y" >> .config )
 
 # Set aufs to load as a module (aufs3-standalone)
-( [[ "${AUFS_ENABLE}" == "YES" ]] && [[ -z `grep CONFIG_AUFS_FS= ${KERN_SOURCE}/.config` ]] && \
+( [[ "${AUFS_ENABLE}" == "YES" ]] && [[ -z `grep "CONFIG_AUFS_FS=" ${KERN_SOURCE}/.config` ]] && \
   cd ${KERN_SOURCE} && \
   echo "CONFIG_AUFS_FS=m" >> .config )
 
