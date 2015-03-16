@@ -27,3 +27,5 @@ container is run.
 Super easy to run.  Just expose a volume for the kernel build and off you go:
 
     docker run -it -d -v /hostpath/kernel:/kern maiome/rpi-kernel-build
+    
+There's a *little* bit more information [here](http://blog.maio.me/rebuilding-a-raspi-kernel/). Enjoy~
