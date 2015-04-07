@@ -11,6 +11,7 @@
 # Available env variables:
 #   AUFS_ENABLE -> make the setup part patch the kernel source with aufs3.1-standalone and enable kern module. [default: YES]
 #   PARALLEL_OPT -> set the value that make uses for -j (parallel execution) [default: 3]
+#   PLATFORM -> set build platform [default: bcmrpi]
 #   UPDATE_EXISTING -> if USE_EXISTING_SRC=YES, do we also run a pull to update the sources? [default: NO]
 #   USE_EXISTING_SRC -> make the build system use existing sources, if present [default: NO]
 #   USE_HARDFLOAT -> build the kernel with armhf support instead of soft-float. [default: YES]
@@ -56,6 +57,7 @@ CROSS_COMPILE=""
 # Environment variables / defaults.
 AUFS_ENABLE=${AUFS_ENABLE:-"YES"}
 PARALLEL_OPT=${PARALLEL_OPT:-3}
+PLATFORM=${PLATFORM:-"bcmrpi"}
 UPDATE_EXISTING=${UPDATE_EXISTING:-"NO"}
 USE_EXISTING_SRC=${USE_EXISTING_SRC:-"NO"}
 USE_HARDFLOAT=${USE_HARDFLOAT:-"YES"}
@@ -69,13 +71,18 @@ declare -a AUFS_KERN_CPY=( "/fs,/" "/Documentation,/" "/include/uapi/linux/aufs_
 declare -a FILE_APPEND_PATCH=( "header-y += aufs_type.h,${KERN_SOURCE}/include/uapi/linux/Kbuild" )
 
 # Set the cross-compiler prefix.
-# Set the cross-compiler prefix.
 if [[ "${USE_HARDFLOAT}" == "YES" ]] ; then
   echo ' [!] Compiling with HardFP.'
   export CROSS_COMPILE="${ARMHF_CC_PFX}"
 elif [[ "${USE_HARDFLOAT}" != "YES" ]] ; then
   echo ' [!] Compiling with SoftFP.'
   export CROSS_COMPILE="${ARMSF_CC_PFX}"
+fi
+
+# Check the platform.
+if [[ "${PLATFORM}" != "bcmrpi" && "${PLATFORM}" != "bcm2709" ]] ; then
+  echo " [-] Invalid platform '${PLATFORM}'"
+  exit 1
 fi
 
 # Echo out build settings.
@@ -99,6 +106,7 @@ echo " [+] CROSS_COMPILE    => ${CROSS_COMPILE}"
 echo " [!] ------------------ Environment Variables ------------------ [!]"
 echo " [+] AUFS_ENABLE      => ${AUFS_ENABLE}"
 echo " [+] PARALLEL_OPT     => ${PARALLEL_OPT}"
+echo " [+] PLATFORM         => ${PLATFORM}"
 echo " [+] UPDATE_EXISTING  => ${UPDATE_EXISTING}"
 echo " [+] USE_EXISTING_SRC => ${USE_EXISTING_SRC}"
 echo " [+] USE_HARDFLOAT    => ${USE_HARDFLOAT}"
@@ -197,15 +205,15 @@ done
 
 # Create a kernel from the bcmrpi defaults if no kernel config was provided.
 # If a kernel config was provided, tell the build system to use the "old"
-#  configuration and use bcmrpi defaults for all NEW symbols.
+#  configuration and use PLATFORM defaults for all NEW symbols.
 ( [[ ! -f ${KERN_SOURCE}/.config ]] && \
   cd ${KERN_SOURCE} && \
-  echo " [!] Building kern. conf. with defaults from PLATFORM=bcmrpi." && \
-  make ARCH=arm PLATFORM=bcmrpi CROSS_COMPILE=${CROSS_COMPILE} bcmrpi_defconfig ) ||
+  echo " [!] Building kern. conf. with defaults from PLATFORM=${PLATFORM}." && \
+  make ARCH=arm PLATFORM=${PLATFORM} CROSS_COMPILE=${CROSS_COMPILE} ${PLATFORM}_defconfig ) ||
 ( [[ -f ${KERN_SOURCE}/.config ]] && \
   cd ${KERN_SOURCE} && \
-  echo " [!] Building rpi-config with NEW symbol defaults from PLATFORM=bcmrpi." && \
-  make ARCH=arm PLATFORM=bcmrpi CROSS_COMPILE=${CROSS_COMPILE} olddefconfig )
+  echo " [!] Building rpi-config with NEW symbol defaults from PLATFORM=${PLATFORM}." && \
+  make ARCH=arm PLATFORM=${PLATFORM} CROSS_COMPILE=${CROSS_COMPILE} olddefconfig )
 
 # ALWAYS enable loadable kernel module support
 ( [[ -z `grep "CONFIG_MODULES=" ${KERN_SOURCE}/.config` ]] && \
@@ -219,7 +227,7 @@ done
 
 # Cross-compile kernel.
 ( cd ${KERN_SOURCE} && \
-  make ARCH=arm PLATFORM=bcmrpi CROSS_COMPILE=${CROSS_COMPILE} -k -j ${PARALLEL_OPT} )
+  make ARCH=arm PLATFORM=${PLATFORM} CROSS_COMPILE=${CROSS_COMPILE} -k -j ${PARALLEL_OPT} )
 
 # Copy the kernel output to $KERN_OUTPUT
 ( cd ${KERN_SOURCE} && \
@@ -227,7 +235,7 @@ done
 
 # Build kernel modules.
 ( cd ${KERN_SOURCE} && \
-  make ARCH=arm PLATFORM=bcmrpi modules_install INSTALL_MOD_PATH=${MOD_OUTPUT} )
+  make ARCH=arm PLATFORM=${PLATFORM} modules_install INSTALL_MOD_PATH=${MOD_OUTPUT} )
 
 # Copy new firmware.
 ( cp ${FW_SOURCE}${RPI_FW_SUBDIR}/*.dtb ${FW_OUTPUT} && \

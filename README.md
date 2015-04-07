@@ -11,8 +11,13 @@ You can pass some environment variables in to the container when you run it:
 
   - AUFS_ENABLE => Whether or not to build the AuFS module with the kernel.
     - Default: **YES**
-  - PARALLEL_OPT => Specify how many jobs / recipes Make should execute at once.
+  - PARALLEL_OPT => Specify how many jobs / recipes Make should execute at once (# of processors * 1.5).
     - Default: **3**
+  - PLATFORM => Specify the platform to build.
+    - Default: **bcmrpi**
+    - Options:
+      - **bcmrpi** - First generation Raspberry Pi.
+      - **bcm2709** - Second generation Raspberry Pi.
   - UPDATE_EXISTING => If USE_EXISTING_SRC=YES, also run a pull to update the sources.
     - Default: **NO**
   - USE_EXISTING_SRC => Make the build system use existing sources, if present.
